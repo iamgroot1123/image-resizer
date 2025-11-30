@@ -39,13 +39,14 @@ body {
     padding: 16px;
 }
 
+/* widened card */
 .card {
     background: #111827;
     border-radius: 12px;
     box-shadow: 0 15px 45px rgba(0, 0, 0, 0.4);
-    padding: 24px 20px;
+    padding: 24px 24px;
     width: 100%;
-    max-width: 520px;
+    max-width: 720px; /* was ~520, now wider */
     border: 1px solid #374151;
 }
 
@@ -101,10 +102,21 @@ body {
     transform: translateY(-1px);
 }
 
+/* new: preview image styling */
+.preview-image {
+    margin-top: 14px;
+    max-width: 100%;
+    max-height: 260px;
+    border-radius: 8px;
+    object-fit: contain;
+    border: 1px solid #374151;
+}
+
 .resize-options {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    margin-top: 12px;
 }
 
 .resize-options label {
@@ -195,6 +207,7 @@ body {
 @media (max-width: 600px) {
     .card {
         padding: 20px 16px;
+        max-width: 100%;
     }
 
     .page-header h1 {

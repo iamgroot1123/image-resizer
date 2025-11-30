@@ -1,115 +1,179 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Image Resizer</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 </head>
 <body>
-    <!-- Top title + description -->
-    <header>
+    <!-- Top header -->
+    <header class="page-header">
         <h1>Image Resizer</h1>
         <p>Upload an image, specify your resize requirements, and download the resized image!</p>
     </header>
 
-    <!-- Centered form block -->
-    <div class="form-container">
-        <form action="/upload" method="POST" enctype="multipart/form-data" class="upload-form">
+    <!-- Main content: centered form + result -->
+    <main class="main-content">
+        <section class="card">
+            <form id="resizeForm" class="upload-form" enctype="multipart/form-data">
+                <!-- Upload area -->
+                <div class="upload-area" id="uploadArea">
+                    <input type="file" name="image" id="fileInput" accept="image/*" required />
+                    <div class="upload-area-text">
+                        <p id="uploadLabel">Drag and drop an image here or click to select</p>
+                        <button type="button" class="select-btn" id="selectButton">
+                            Select Image
+                        </button>
+                    </div>
+                </div>
 
-            <!-- File input -->
-            <div class="drop-zone">
-                <span class="drop-zone__prompt">Drag & drop an image here, or click to select</span>
-                <input type="file" name="image" id="fileInput" class="drop-zone__input" accept="image/*" required>
-            </div>
+                <!-- Resize options -->
+                <div class="resize-options">
+                    <label for="width">Target Width (px):</label>
+                    <input type="number" name="width" id="width" min="10" placeholder="Enter width" required />
 
-            <div class="resize-options">
-                <label for="width">Target Width (px):</label>
-                <input type="number" name="width" id="width" min="10" placeholder="Enter width" required>
+                    <label for="height">Target Height (px):</label>
+                    <input type="number" name="height" id="height" min="10" placeholder="Enter height" required />
 
-                <label for="height">Target Height (px):</label>
-                <input type="number" name="height" id="height" min="10" placeholder="Enter height" required>
+                    <label for="max_size">Max Size (KB):</label>
+                    <input type="number" name="max_size" id="max_size" min="1" placeholder="Max file size in KB" required />
+                </div>
 
-                <label for="max_size">Max Size (KB):</label>
-                <input type="number" name="max_size" id="max_size" min="1" placeholder="Max file size in KB" required>
-            </div>
+                <button type="submit" class="upload-btn" id="submitBtn">
+                    Upload and Resize
+                </button>
 
-            <button type="submit" class="upload-btn">Upload and Resize</button>
-        </form>
-    </div>
+                <p class="status" id="statusText"></p>
+            </form>
+        </section>
+
+        <!-- Result section -->
+        <section class="card result-card" id="resultCard" style="display: none;">
+            <h2>Result</h2>
+            <p id="resultInfo"></p>
+            <button id="downloadAgainBtn" class="download-btn" style="display: none;">
+                Download Again
+            </button>
+        </section>
+    </main>
 
     <script>
-        document.querySelectorAll(".drop-zone__input").forEach((inputElement) => {
-            const dropZoneElement = inputElement.closest(".drop-zone");
+        const form = document.getElementById('resizeForm');
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const selectButton = document.getElementById('selectButton');
+        const uploadLabel = document.getElementById('uploadLabel');
+        const statusText = document.getElementById('statusText');
+        const resultCard = document.getElementById('resultCard');
+        const resultInfo = document.getElementById('resultInfo');
+        const downloadAgainBtn = document.getElementById('downloadAgainBtn');
 
-            dropZoneElement.addEventListener("click", (e) => {
-                inputElement.click();
-            });
+        let lastBlobUrl = null;
 
-            inputElement.addEventListener("change", (e) => {
-                if (inputElement.files.length) {
-                    updateThumbnail(dropZoneElement, inputElement.files[0]);
-                }
-            });
+        // Click on custom button triggers file input
+        selectButton.addEventListener('click', () => fileInput.click());
 
-            dropZoneElement.addEventListener("dragover", (e) => {
-                e.preventDefault();
-                dropZoneElement.classList.add("drop-zone--over");
-            });
-
-            ["dragleave", "dragend"].forEach((type) => {
-                dropZoneElement.addEventListener(type, (e) => {
-                    dropZoneElement.classList.remove("drop-zone--over");
-                });
-            });
-
-            dropZoneElement.addEventListener("drop", (e) => {
-                e.preventDefault();
-
-                if (e.dataTransfer.files.length) {
-                    inputElement.files = e.dataTransfer.files;
-                    updateThumbnail(dropZoneElement, e.dataTransfer.files[0]);
-                }
-
-                dropZoneElement.classList.remove("drop-zone--over");
-            });
+        // When file selected, update label
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files && fileInput.files[0]) {
+                uploadLabel.textContent = `Selected: ${fileInput.files[0].name}`;
+            } else {
+                uploadLabel.textContent = 'Drag and drop an image here or click to select';
+            }
         });
 
-        /**
-         * Updates the thumbnail on a drop zone element.
-         *
-         * @param {HTMLElement} dropZoneElement
-         * @param {File} file
-         */
-        function updateThumbnail(dropZoneElement, file) {
-            let thumbnailElement = dropZoneElement.querySelector(".drop-zone__thumb");
+        // Drag & drop styling + behavior
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
 
-            // First time - remove the prompt
-            if (dropZoneElement.querySelector(".drop-zone__prompt")) {
-                dropZoneElement.querySelector(".drop-zone__prompt").remove();
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                fileInput.files = e.dataTransfer.files;
+                uploadLabel.textContent = `Selected: ${fileInput.files[0].name}`;
+            }
+        });
+
+        // Handle form submit via fetch
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!fileInput.files || fileInput.files.length === 0) {
+                statusText.textContent = 'Please select an image first.';
+                statusText.className = 'status error';
+                return;
             }
 
-            // First time - create the thumbnail element
-            if (!thumbnailElement) {
-                thumbnailElement = document.createElement("div");
-                thumbnailElement.classList.add("drop-zone__thumb");
-                dropZoneElement.appendChild(thumbnailElement);
-            }
+            statusText.textContent = 'Resizing image...';
+            statusText.className = 'status loading';
 
-            thumbnailElement.dataset.label = file.name;
+            const formData = new FormData(form);
 
-            // Show thumbnail for image files
-            if (file.type.startsWith("image/")) {
-                const reader = new FileReader();
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
 
-                reader.readAsDataURL(file);
-                reader.onload = () => {
-                    thumbnailElement.style.backgroundImage = `url('${reader.result}')`;
+                if (!response.ok) {
+                    const errText = await response.text();
+                    statusText.textContent = errText || 'Error resizing image.';
+                    statusText.className = 'status error';
+                    return;
+                }
+
+                const blob = await response.blob();
+                const sizeKB = (blob.size / 1024).toFixed(2);
+
+                // Clean up old blob URL if any
+                if (lastBlobUrl) {
+                    URL.revokeObjectURL(lastBlobUrl);
+                    lastBlobUrl = null;
+                }
+
+                const blobUrl = URL.createObjectURL(blob);
+                lastBlobUrl = blobUrl;
+
+                // Update UI
+                statusText.textContent = 'Image resized successfully!';
+                statusText.className = 'status success';
+
+                resultCard.style.display = 'block';
+                resultInfo.textContent = `Resized image size: ${sizeKB} KB`;
+                downloadAgainBtn.style.display = 'inline-block';
+
+                // Auto-download once
+                triggerDownload(blobUrl, 'resized_image.jpg');
+
+                // Setup "Download Again" button
+                downloadAgainBtn.onclick = () => {
+                    if (lastBlobUrl) {
+                        triggerDownload(lastBlobUrl, 'resized_image.jpg');
+                    }
                 };
-            } else {
-                thumbnailElement.style.backgroundImage = null;
+            } catch (err) {
+                console.error(err);
+                statusText.textContent = 'Unexpected error. Please try again.';
+                statusText.className = 'status error';
             }
+        });
+
+        function triggerDownload(url, filename) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
         }
     </script>
 </body>

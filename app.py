@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif'}
 
-def allowed_file(filename):
+def allowed_file(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def resize_image(input_image, target_width, target_height, max_file_size_kb):
@@ -19,6 +19,7 @@ def resize_image(input_image, target_width, target_height, max_file_size_kb):
     while True:
         output.seek(0)
         output.truncate(0)
+
         img.save(output, format='JPEG', quality=quality)
         size_kb = len(output.getvalue()) / 1024
 
@@ -40,32 +41,36 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_image():
     if 'image' not in request.files:
-        return 'No file part'
+        return "No file part", 400
+
     file = request.files['image']
     if file.filename == '':
-        return 'No selected file'
+        return "No selected file", 400
 
-    if file and allowed_file(file.filename):
-        try:
-            target_width = int(request.form['width'])
-            target_height = int(request.form['height'])
-            max_file_size_kb = int(request.form['max_size'])
-        except ValueError:
-            return 'Invalid resize parameters. Please enter valid numbers.'
+    if not (file and allowed_file(file.filename)):
+        return "Invalid file type. Please upload an image file (jpg, jpeg, png, gif).", 400
 
-        output_image, file_size_kb = resize_image(
-            file, target_width, target_height, max_file_size_kb
-        )
+    try:
+        target_width = int(request.form['width'])
+        target_height = int(request.form['height'])
+        max_file_size_kb = int(request.form['max_size'])
+    except (ValueError, KeyError):
+        return "Invalid resize parameters. Please enter valid numbers.", 400
 
-        # Direct download
-        return send_file(
-            output_image,
-            as_attachment=True,
-            download_name='resized_image.jpg',
-            mimetype='image/jpeg'
-        )
+    output_image, file_size_kb = resize_image(
+        file, target_width, target_height, max_file_size_kb
+    )
 
-    return 'Invalid file type. Please upload an image file (jpg, jpeg, png, gif).'
+    # We’ll use JS to read Content-Length and blob size on frontend
+    resp = send_file(
+        output_image,
+        as_attachment=True,
+        download_name="resized_image.jpg",
+        mimetype="image/jpeg",
+    )
+    # Optional: add custom header with size
+    resp.headers['X-File-Size-KB'] = f"{file_size_kb:.2f}"
+    return resp
 
 if __name__ == '__main__':
     app.run(debug=True)

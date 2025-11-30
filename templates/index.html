@@ -1,133 +1,116 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Resizer</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
-      rel="stylesheet" />
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='style.css') }}" />
-    <style>
-      body {
-        margin: 0;
-        font-family: "Roboto", sans-serif;
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
-      }
-
-      header {
-        text-align: center;
-        padding: 40px 20px 20px;
-        background-color: #f4f4f4;
-      }
-
-      .form-container {
-        flex-grow: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-      }
-
-      .upload-form {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 20px;
-        border: 1px solid #ddd;
-        border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        background-color: white;
-      }
-
-      input[type="file"] {
-        margin-bottom: 20px;
-        display: block;
-      }
-
-      .resize-options {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        margin-bottom: 20px;
-      }
-
-      .upload-btn,
-      .download-btn {
-        background-color: #007bff;
-        color: white;
-        padding: 10px 20px;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        text-decoration: none;
-      }
-
-      .message {
-        margin-top: 20px;
-        text-align: center;
-      }
-
-      .download-btn {
-        margin-top: 10px;
-      }
-    </style>
-  </head>
-  <body>
-    <!-- Title and Description at the top -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Top title + description -->
     <header>
-      <h1>Image Resizer</h1>
-      <p>
-        Upload an image, specify your resize requirements, and download the
-        resized image!
-      </p>
+        <h1>Image Resizer</h1>
+        <p>Upload an image, specify your resize requirements, and download the resized image!</p>
     </header>
 
-    <!-- Form for uploading the image and specifying resize options -->
+    <!-- Centered form block -->
     <div class="form-container">
-      <form
-        action="/upload"
-        method="POST"
-        enctype="multipart/form-data"
-        class="upload-form">
-        <input type="file" name="image" accept="image/*" required />
+        <form action="/upload" method="POST" enctype="multipart/form-data" class="upload-form">
 
-        <!-- Resize Options -->
-        <div class="resize-options">
-          <label for="width">Target Width (px):</label>
-          <input
-            type="number"
-            name="width"
-            id="width"
-            min="10"
-            placeholder="Enter width"
-            required />
+            <!-- File input -->
+            <div class="drop-zone">
+                <span class="drop-zone__prompt">Drag & drop an image here, or click to select</span>
+                <input type="file" name="image" id="fileInput" class="drop-zone__input" accept="image/*" required>
+            </div>
 
-          <label for="height">Target Height (px):</label>
-          <input
-            type="number"
-            name="height"
-            id="height"
-            min="10"
-            placeholder="Enter height"
-            required />
+            <div class="resize-options">
+                <label for="width">Target Width (px):</label>
+                <input type="number" name="width" id="width" min="10" placeholder="Enter width" required>
 
-          <label for="max_size">Max Size (KB):</label>
-          <input
-            type="number"
-            name="max_size"
-            id="max_size"
-            min="1"
-            placeholder="Max file size in KB"
-            required />
-        </div>
+                <label for="height">Target Height (px):</label>
+                <input type="number" name="height" id="height" min="10" placeholder="Enter height" required>
 
-        <button type="submit" class="upload-btn">Upload and Resize</button>
-      </form>
+                <label for="max_size">Max Size (KB):</label>
+                <input type="number" name="max_size" id="max_size" min="1" placeholder="Max file size in KB" required>
+            </div>
+
+            <button type="submit" class="upload-btn">Upload and Resize</button>
+        </form>
     </div>
-  </body>
+
+    <script>
+        document.querySelectorAll(".drop-zone__input").forEach((inputElement) => {
+            const dropZoneElement = inputElement.closest(".drop-zone");
+
+            dropZoneElement.addEventListener("click", (e) => {
+                inputElement.click();
+            });
+
+            inputElement.addEventListener("change", (e) => {
+                if (inputElement.files.length) {
+                    updateThumbnail(dropZoneElement, inputElement.files[0]);
+                }
+            });
+
+            dropZoneElement.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                dropZoneElement.classList.add("drop-zone--over");
+            });
+
+            ["dragleave", "dragend"].forEach((type) => {
+                dropZoneElement.addEventListener(type, (e) => {
+                    dropZoneElement.classList.remove("drop-zone--over");
+                });
+            });
+
+            dropZoneElement.addEventListener("drop", (e) => {
+                e.preventDefault();
+
+                if (e.dataTransfer.files.length) {
+                    inputElement.files = e.dataTransfer.files;
+                    updateThumbnail(dropZoneElement, e.dataTransfer.files[0]);
+                }
+
+                dropZoneElement.classList.remove("drop-zone--over");
+            });
+        });
+
+        /**
+         * Updates the thumbnail on a drop zone element.
+         *
+         * @param {HTMLElement} dropZoneElement
+         * @param {File} file
+         */
+        function updateThumbnail(dropZoneElement, file) {
+            let thumbnailElement = dropZoneElement.querySelector(".drop-zone__thumb");
+
+            // First time - remove the prompt
+            if (dropZoneElement.querySelector(".drop-zone__prompt")) {
+                dropZoneElement.querySelector(".drop-zone__prompt").remove();
+            }
+
+            // First time - create the thumbnail element
+            if (!thumbnailElement) {
+                thumbnailElement = document.createElement("div");
+                thumbnailElement.classList.add("drop-zone__thumb");
+                dropZoneElement.appendChild(thumbnailElement);
+            }
+
+            thumbnailElement.dataset.label = file.name;
+
+            // Show thumbnail for image files
+            if (file.type.startsWith("image/")) {
+                const reader = new FileReader();
+
+                reader.readAsDataURL(file);
+                reader.onload = () => {
+                    thumbnailElement.style.backgroundImage = `url('${reader.result}')`;
+                };
+            } else {
+                thumbnailElement.style.backgroundImage = null;
+            }
+        }
+    </script>
+</body>
 </html>

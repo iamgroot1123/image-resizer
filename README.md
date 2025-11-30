@@ -42,9 +42,9 @@ Accessible to anyone. No login or installation required.
 ├── requirements.txt
 ├── vercel.json
 ├── templates
-│ └── index.html
+│   └── index.html
 └── static
-└── style.css
+    └── style.css
 
 ---
 
